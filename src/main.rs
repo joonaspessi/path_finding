@@ -1,0 +1,178 @@
+use macroquad::prelude::*;
+use path_finding::{
+    dijkstra::{Dijkstra, NodeState},
+    grid::{Cell, Grid},
+};
+
+const CELL_SIZE: f32 = 20.0;
+const GRID_WIDTH: usize = 30;
+const GRID_HEIGHT: usize = 25;
+const STEP_DELAY: f32 = 0.01;
+
+enum AppState {
+    Editing,
+    Running,
+    Finished,
+}
+
+#[macroquad::main("Dijkstra Visualization")]
+async fn main() {
+    let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
+    let mut app_state = AppState::Editing;
+    let mut dijkstra: Option<Dijkstra> = None;
+    let mut step_timer = 0.0;
+
+    loop {
+        if is_mouse_button_pressed(MouseButton::Left) {
+            if let Some((x, y)) = mouse_to_grid(&grid) {
+                let current = grid.get(x, y).unwrap_or(Cell::Empty);
+                let new_cell = if current == Cell::Wall {
+                    Cell::Empty
+                } else {
+                    Cell::Wall
+                };
+                grid.set(x, y, new_cell);
+            }
+        }
+
+        if is_mouse_button_pressed(MouseButton::Right) {
+            if let Some((x, y)) = mouse_to_grid(&grid) {
+                let current = grid.get(x, y).unwrap_or(Cell::Empty);
+                let (start, end) = find_start_end(&grid);
+
+                match (start, end) {
+                    (None, None) if current == Cell::Empty => {
+                        grid.set(x, y, Cell::Start);
+                    }
+                    (Some(_), None) if current == Cell::Empty => {
+                        grid.set(x, y, Cell::End);
+                    }
+                    _ => {
+                        // do nothing
+                    }
+                }
+            }
+        }
+
+        if is_key_pressed(KeyCode::Space) {
+            match app_state {
+                AppState::Editing => {
+                    let (start, end) = find_start_end(&grid);
+                    if let (Some(s), Some(e)) = (start, end) {
+                        dijkstra = Some(Dijkstra::new(s, e));
+                        app_state = AppState::Running;
+                        step_timer = 0.0;
+                    }
+                }
+                AppState::Running => {
+                    app_state = AppState::Editing;
+                }
+                AppState::Finished => {
+                    dijkstra = None;
+                    app_state = AppState::Editing;
+                }
+            }
+        }
+
+        if let AppState::Running = app_state {
+            step_timer += get_frame_time();
+            while step_timer >= STEP_DELAY {
+                step_timer -= STEP_DELAY;
+                if let Some(ref mut d) = dijkstra {
+                    if !d.step(&grid) {
+                        app_state = AppState::Finished;
+                        break;
+                    }
+                }
+            }
+        }
+
+        clear_background(BLACK);
+        draw_grid(&grid, dijkstra.as_ref());
+        let status = match app_state {
+            AppState::Editing => "Click to place walls, Right-click for Start/End, SPACE to run",
+            AppState::Running => "Running... SPACE to pause",
+            AppState::Finished => {
+                if let Some(ref d) = dijkstra {
+                    if d.found_path {
+                        "Path found! SPACE to reset"
+                    } else {
+                        "No path exists! SPACE to reset"
+                    }
+                } else {
+                    "SPACE to reset"
+                }
+            }
+        };
+        draw_text(status, 10.0, screen_height() - 10.0, 20.0, WHITE);
+        next_frame().await
+    }
+}
+
+fn draw_grid(grid: &Grid, dijkstra: Option<&Dijkstra>) {
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            let base_color = match grid.get(x, y) {
+                Some(Cell::Empty) => DARKGRAY,
+                Some(Cell::Wall) => BLACK,
+                Some(Cell::Start) => GREEN,
+                Some(Cell::End) => RED,
+                None => DARKGRAY,
+            };
+
+            let color = if let Some(ref d) = dijkstra {
+                match d.get_node_state(x, y) {
+                    NodeState::Path => LIME,
+                    NodeState::Visited => SKYBLUE,
+                    NodeState::InQueue => YELLOW,
+                    NodeState::Unvisited => base_color,
+                }
+            } else {
+                base_color
+            };
+
+            let final_color = match grid.get(x, y) {
+                Some(Cell::Start) => GREEN,
+                Some(Cell::End) => RED,
+                _ => color,
+            };
+
+            draw_rectangle(
+                x as f32 * CELL_SIZE,
+                y as f32 * CELL_SIZE,
+                CELL_SIZE - 1.0,
+                CELL_SIZE - 1.0,
+                final_color,
+            );
+        }
+    }
+}
+
+fn mouse_to_grid(grid: &Grid) -> Option<(usize, usize)> {
+    let (mx, my) = mouse_position();
+    let gx = (mx / CELL_SIZE) as usize;
+    let gy = (my / CELL_SIZE) as usize;
+
+    if gx < grid.width && gy < grid.height {
+        Some((gx, gy))
+    } else {
+        None
+    }
+}
+
+fn find_start_end(grid: &Grid) -> (Option<(usize, usize)>, Option<(usize, usize)>) {
+    let mut start = None;
+    let mut end = None;
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            match grid.get(x, y) {
+                Some(Cell::Start) => start = Some((x, y)),
+                Some(Cell::End) => end = Some((x, y)),
+                _ => {}
+            }
+        }
+    }
+
+    (start, end)
+}
