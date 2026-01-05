@@ -8,6 +8,7 @@ const CELL_SIZE: f32 = 20.0;
 const GRID_WIDTH: usize = 30;
 const GRID_HEIGHT: usize = 25;
 const STEP_DELAY: f32 = 0.01;
+const STATUS_BAR_HEIGHT: f32 = 30.0;
 
 enum AppState {
     Editing,
@@ -15,7 +16,17 @@ enum AppState {
     Finished,
 }
 
-#[macroquad::main("Dijkstra Visualization")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Dijkstra Visualization".to_owned(),
+        window_width: (GRID_WIDTH as f32 * CELL_SIZE) as i32,
+        window_height: (GRID_HEIGHT as f32 * CELL_SIZE + STATUS_BAR_HEIGHT) as i32,
+        window_resizable: false,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
     let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
     let mut app_state = AppState::Editing;
@@ -104,7 +115,8 @@ async fn main() {
                 }
             }
         };
-        draw_text(status, 10.0, screen_height() - 10.0, 20.0, WHITE);
+        let text_y = GRID_HEIGHT as f32 * CELL_SIZE + (STATUS_BAR_HEIGHT + 16.0) / 2.0;
+        draw_text(status, 10.0, text_y, 20.0, WHITE);
         next_frame().await
     }
 }
