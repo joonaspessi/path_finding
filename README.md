@@ -42,22 +42,6 @@ cargo run --release
 # Open docs/index.html in a browser to test locally
 ```
 
-## Project Structure
-
-```
-path_finding/
-├── src/
-│   ├── main.rs       # Entry point and visualization
-│   ├── lib.rs        # Library exports
-│   ├── grid.rs       # Grid data structure
-│   └── dijkstra.rs   # Dijkstra's algorithm implementation
-├── docs/             # GitHub Pages deployment
-│   ├── index.html
-│   └── path_finding.wasm
-└── resources/
-    └── screenshot.png
-```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
