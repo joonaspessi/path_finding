@@ -39,37 +39,45 @@
   </head>
   <body>
     <h1>Pathfinding Visualizer</h1>
-    <canvas id="glcanvas" width="600" height="530" tabindex="0"></canvas>
-    <p class="instructions">
-      Left-click: Toggle walls | Right-click: Place Start/End | Space: Run
-      algorithm
-    </p>
+    <canvas id="glcanvas" width="1000" height="1030" tabindex="0"></canvas>
 
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
     <script>
-      load("path_finding.wasm");
+      (function() {
+        const glCanvas = document.getElementById("glcanvas");
 
-      // Prevent browser context menu on right-click
-      document.getElementById("glcanvas").addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-      });
+        // Cache-busting: append timestamp to force reload
+        load("path_finding.wasm?" + Date.now());
 
-      // Prevent spacebar from scrolling the page
-      document.addEventListener("keydown", (e) => {
-        if (e.code === "Space" && e.target === document.body) {
+        // Prevent browser context menu on right-click
+        glCanvas.addEventListener("contextmenu", (e) => {
           e.preventDefault();
-        }
-      });
+        });
 
-      // Auto-focus canvas for keyboard input
-      window.addEventListener("load", () => {
-        document.getElementById("glcanvas").focus();
-      });
+        // Prevent spacebar from scrolling the page
+        document.addEventListener("keydown", (e) => {
+          if (e.code === "Space") {
+            e.preventDefault();
+          }
+        });
 
-      // Re-focus canvas when clicked
-      document.getElementById("glcanvas").addEventListener("click", (e) => {
-        e.target.focus();
-      });
+        // Focus canvas on any mouse interaction
+        glCanvas.addEventListener("mousedown", () => glCanvas.focus());
+        glCanvas.addEventListener("mouseenter", () => glCanvas.focus());
+
+        // Auto-focus canvas after WASM loads (with delay to ensure it's ready)
+        setTimeout(() => glCanvas.focus(), 500);
+
+        // Keep trying to focus until user interacts
+        const focusInterval = setInterval(() => {
+          if (document.activeElement !== glCanvas) {
+            glCanvas.focus();
+          }
+        }, 1000);
+
+        // Stop the interval after first user interaction
+        glCanvas.addEventListener("click", () => clearInterval(focusInterval), { once: true });
+      })();
     </script>
   </body>
 </html>

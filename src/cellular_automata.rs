@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::grid::{Cell, Grid};
 use rand::prelude::*;
-use rand::rngs::StdRng;
+use rand::rngs::SmallRng;
 
 pub struct CellularAutomata {
     pub wall_change: f32,
@@ -22,7 +22,7 @@ impl Default for CellularAutomata {
 
 impl CellularAutomata {
     pub fn generate(&self, grid: &mut Grid) {
-        let mut rng = StdRng::seed_from_u64(self.seed);
+        let mut rng = SmallRng::seed_from_u64(self.seed);
 
         // phase 1: random fill
         self.random_fill(grid, &mut rng);
@@ -39,7 +39,7 @@ impl CellularAutomata {
         self.place_endpoints(grid, &mut rng);
     }
 
-    fn random_fill(&self, grid: &mut Grid, rng: &mut StdRng) {
+    fn random_fill(&self, grid: &mut Grid, rng: &mut SmallRng) {
         for y in 0..grid.height {
             for x in 0..grid.width {
                 let is_border = x == 0 || y == 0 || x == grid.width - 1 || y == grid.height - 1;
@@ -197,7 +197,7 @@ impl CellularAutomata {
         furthest
     }
 
-    fn place_endpoints(&self, grid: &mut Grid, rng: &mut StdRng) {
+    fn place_endpoints(&self, grid: &mut Grid, rng: &mut SmallRng) {
         let mut floor_cells: Vec<(usize, usize)> = Vec::new();
 
         for y in 0..grid.height {
