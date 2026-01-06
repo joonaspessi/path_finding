@@ -32,8 +32,9 @@ impl CellularAutomata {
             self.smooth(grid);
         }
 
-        // phase 3: keep only largest connected region
-        self.keep_largest_region(grid);
+        // phase 3: keep only largest connected region or connect regions
+        //self.keep_largest_region(grid);
+        self.connect_regions(grid);
 
         // phase 4: set endpoints
         self.place_endpoints(grid, &mut rng);
@@ -224,14 +225,96 @@ impl CellularAutomata {
         grid.set(far1.0, far1.1, Cell::Start);
         grid.set(far2.0, far2.1, Cell::End);
     }
+
+    fn region_centroid(&self, region: &HashSet<(usize, usize)>) -> (usize, usize) {
+        if region.len() == 0 {
+            panic!("empty region")
+        }
+        let sum_x: usize = region.iter().map(|p| p.0).sum();
+        let sum_y: usize = region.iter().map(|p| p.1).sum();
+
+        let avg_x = sum_x / region.len();
+        let avg_y = sum_y / region.len();
+
+        (avg_x, avg_y)
+    }
+
+    fn carve_corridor(&self, grid: &mut Grid, from: (usize, usize), to: (usize, usize)) {
+        let ax = from.0;
+        let bx = to.0;
+
+        let ay = from.1;
+        let by = to.1;
+
+        let (start, end) = if ax < bx { (ax, bx) } else { (bx, ax) };
+
+        for nx in start..=end {
+            grid.set(nx, ay, Cell::Empty);
+        }
+
+        let (start, end) = if ay < by { (ay, by) } else { (by, ay) };
+
+        for ny in start..=end {
+            grid.set(bx, ny, Cell::Empty);
+        }
+    }
+
+    fn connect_regions(&self, grid: &mut Grid) {
+        let regions = self.find_regions(grid);
+
+        if regions.len() <= 1 {
+            return;
+        }
+
+        let centroids: Vec<(u32, (usize, usize))> = regions
+            .iter()
+            .map(|(&id, region)| (id, self.region_centroid(region)))
+            .collect();
+
+        let mut connected: HashSet<u32> = HashSet::new();
+        connected.insert(centroids[0].0);
+
+        while connected.len() < centroids.len() {
+            let mut best_connection: Option<(u32, u32, f64)> = None;
+
+            for &(id_a, pos_a) in &centroids {
+                if !connected.contains(&id_a) {
+                    continue;
+                }
+
+                for &(id_b, pos_b) in &centroids {
+                    if connected.contains(&id_b) {
+                        continue;
+                    }
+                    let dist = self.distance(pos_a, pos_b);
+
+                    if best_connection.is_none() || dist < best_connection.unwrap().2 {
+                        best_connection = Some((id_a, id_b, dist));
+                    }
+                }
+            }
+
+            if let Some((from_id, to_id, _)) = best_connection {
+                let from_pos = centroids.iter().find(|(id, _)| *id == from_id).unwrap().1;
+                let to_pos = centroids.iter().find(|(id, _)| *id == to_id).unwrap().1;
+
+                self.carve_corridor(grid, from_pos, to_pos);
+                connected.insert(to_id);
+            }
+        }
+    }
+
+    fn distance(&self, a: (usize, usize), b: (usize, usize)) -> f64 {
+        let dx = a.0 as f64 - b.0 as f64;
+        let dy = a.1 as f64 - b.1 as f64;
+
+        (dx * dx + dy * dy).sqrt()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        cellular_automata::CellularAutomata,
-        grid::{Cell, Grid},
-    };
+    use super::*;
 
     #[test]
     fn test_count_neighbors_cornre() {
@@ -241,5 +324,13 @@ mod tests {
         grid.set(0, 0, Cell::Wall);
         // Corner (0,0) has 5 out-of-bounds neighbors + itself
         assert_eq!(gen.count_wall_neighbors(&grid, 0, 0), 6);
+    }
+
+    #[test]
+    fn test_region_centroid() {
+        let gen = CellularAutomata::default();
+        let region: HashSet<(usize, usize)> =
+            vec![(1, 1), (2, 1), (3, 1), (2, 2)].into_iter().collect();
+        assert_eq!(gen.region_centroid(&region), (2, 1));
     }
 }
