@@ -34,7 +34,7 @@ async fn main() {
     let mut app_state = AppState::Editing;
     let mut path_algo: Option<AStar> = None;
     let mut step_timer = 0.0;
-    let mut cave_seed: u64 = 14;
+    let mut cave_seed: u64 = 0;
     let mut first_run: bool = true;
 
     loop {
