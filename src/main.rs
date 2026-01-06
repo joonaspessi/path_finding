@@ -1,12 +1,13 @@
 use macroquad::prelude::*;
 use path_finding::{
+    cellular_automata::CellularAutomata,
     dijkstra::{Dijkstra, NodeState},
     grid::{Cell, Grid},
 };
 
 const CELL_SIZE: f32 = 20.0;
-const GRID_WIDTH: usize = 30;
-const GRID_HEIGHT: usize = 25;
+const GRID_WIDTH: usize = 50;
+const GRID_HEIGHT: usize = 50;
 const STEP_DELAY: f32 = 0.01;
 const STATUS_BAR_HEIGHT: f32 = 30.0;
 
@@ -32,6 +33,8 @@ async fn main() {
     let mut app_state = AppState::Editing;
     let mut dijkstra: Option<Dijkstra> = None;
     let mut step_timer = 0.0;
+    let mut cave_seed: u64 = 14;
+    let mut first_run: bool = true;
 
     loop {
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -85,6 +88,19 @@ async fn main() {
             }
         }
 
+        if is_key_pressed(KeyCode::G) || first_run {
+            cave_seed += 1;
+            dijkstra = None;
+            app_state = AppState::Editing;
+
+            let generate = CellularAutomata {
+                seed: cave_seed,
+                ..Default::default()
+            };
+            generate.generate(&mut grid);
+            first_run = false;
+        }
+
         if let AppState::Running = app_state {
             step_timer += get_frame_time();
             while step_timer >= STEP_DELAY {
@@ -101,7 +117,7 @@ async fn main() {
         clear_background(BLACK);
         draw_grid(&grid, dijkstra.as_ref());
         let status = match app_state {
-            AppState::Editing => "Click to place walls, Right-click for Start/End, SPACE to run",
+            AppState::Editing => &format!("Seed: {} | G: new cave | SPACE: pathfind", cave_seed),
             AppState::Running => "Running... SPACE to pause",
             AppState::Finished => {
                 if let Some(ref d) = dijkstra {
@@ -132,7 +148,7 @@ fn draw_grid(grid: &Grid, dijkstra: Option<&Dijkstra>) {
                 None => DARKGRAY,
             };
 
-            let color = if let Some(ref d) = dijkstra {
+            let color = if let Some(d) = dijkstra {
                 match d.get_node_state(x, y) {
                     NodeState::Path => LIME,
                     NodeState::Visited => SKYBLUE,
@@ -172,7 +188,9 @@ fn mouse_to_grid(grid: &Grid) -> Option<(usize, usize)> {
     }
 }
 
-fn find_start_end(grid: &Grid) -> (Option<(usize, usize)>, Option<(usize, usize)>) {
+type Position = (usize, usize);
+
+fn find_start_end(grid: &Grid) -> (Option<Position>, Option<Position>) {
     let mut start = None;
     let mut end = None;
 
