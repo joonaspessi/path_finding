@@ -19,7 +19,10 @@ struct Node {
 
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.f_cost.cmp(&self.f_cost)
+        match other.f_cost.cmp(&self.f_cost) {
+            Ordering::Equal => self.g_cost.cmp(&other.g_cost), // higher g = closer to goal,
+            other => other,
+        }
     }
 }
 
@@ -29,7 +32,7 @@ impl PartialOrd for Node {
     }
 }
 
-fn heuristics(from: (usize, usize), to: (usize, usize)) -> u32 {
+fn heuristic_manhantan(from: (usize, usize), to: (usize, usize)) -> u32 {
     let dx = (from.0 as i32 - to.0 as i32).abs() as u32;
     let dy = (from.1 as i32 - to.1 as i32).abs() as u32;
     dx + dy
@@ -62,7 +65,7 @@ impl AStar {
         };
 
         astar.g_costs.insert(start, 0);
-        let h = heuristics(start, end);
+        let h = heuristic_manhantan(start, end);
         astar.queue.push(Node {
             position: start,
             g_cost: 0,
@@ -118,7 +121,7 @@ impl AStar {
             let old_g = *self.g_costs.get(&(nx, ny)).unwrap_or(&u32::MAX);
 
             if new_g < old_g {
-                let new_f = new_g + heuristics((nx, ny), self.end);
+                let new_f = new_g + heuristic_manhantan((nx, ny), self.end);
                 self.g_costs.insert((nx, ny), new_g);
                 self.parents.insert((nx, ny), pos);
                 self.queue.push(Node {
@@ -181,10 +184,10 @@ mod tests {
 
     #[test]
     fn test_heuristics() {
-        let a = heuristics((0, 0), (2, 2));
+        let a = heuristic_manhantan((0, 0), (2, 2));
         assert_eq!(a, 4);
 
-        let b = heuristics((2, 2), (0, 0));
+        let b = heuristic_manhantan((2, 2), (0, 0));
         assert_eq!(b, 4);
     }
 }
