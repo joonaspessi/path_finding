@@ -149,7 +149,8 @@ impl CellularAutomata {
 
         region
     }
-
+    
+    #[allow(dead_code)]
     fn keep_largest_region(&self, grid: &mut Grid) {
         let regions = self.find_regions(grid);
         let largest = regions
