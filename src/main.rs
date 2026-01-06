@@ -1,7 +1,8 @@
 use macroquad::prelude::*;
 use path_finding::{
+    astar::{AStar, NodeState},
     cellular_automata::CellularAutomata,
-    dijkstra::{Dijkstra, NodeState},
+    //dijkstra::{Dijkstra, NodeState},
     grid::{Cell, Grid},
 };
 
@@ -31,7 +32,7 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
     let mut app_state = AppState::Editing;
-    let mut dijkstra: Option<Dijkstra> = None;
+    let mut path_algo: Option<AStar> = None;
     let mut step_timer = 0.0;
     let mut cave_seed: u64 = 14;
     let mut first_run: bool = true;
@@ -73,7 +74,7 @@ async fn main() {
                 AppState::Editing => {
                     let (start, end) = find_start_end(&grid);
                     if let (Some(s), Some(e)) = (start, end) {
-                        dijkstra = Some(Dijkstra::new(s, e));
+                        path_algo = Some(AStar::new(s, e));
                         app_state = AppState::Running;
                         step_timer = 0.0;
                     }
@@ -82,7 +83,7 @@ async fn main() {
                     app_state = AppState::Editing;
                 }
                 AppState::Finished => {
-                    dijkstra = None;
+                    path_algo = None;
                     app_state = AppState::Editing;
                 }
             }
@@ -90,7 +91,7 @@ async fn main() {
 
         if is_key_pressed(KeyCode::G) || first_run {
             cave_seed += 1;
-            dijkstra = None;
+            path_algo = None;
             app_state = AppState::Editing;
 
             let generate = CellularAutomata {
@@ -105,7 +106,7 @@ async fn main() {
             step_timer += get_frame_time();
             while step_timer >= STEP_DELAY {
                 step_timer -= STEP_DELAY;
-                if let Some(ref mut d) = dijkstra {
+                if let Some(ref mut d) = path_algo {
                     if !d.step(&grid) {
                         app_state = AppState::Finished;
                         break;
@@ -115,12 +116,12 @@ async fn main() {
         }
 
         clear_background(BLACK);
-        draw_grid(&grid, dijkstra.as_ref());
+        draw_grid(&grid, path_algo.as_ref());
         let status = match app_state {
             AppState::Editing => &format!("Seed: {} | G: new cave | SPACE: pathfind", cave_seed),
             AppState::Running => "Running... SPACE to pause",
             AppState::Finished => {
-                if let Some(ref d) = dijkstra {
+                if let Some(ref d) = path_algo {
                     if d.found_path {
                         "Path found! SPACE to reset"
                     } else {
@@ -137,7 +138,7 @@ async fn main() {
     }
 }
 
-fn draw_grid(grid: &Grid, dijkstra: Option<&Dijkstra>) {
+fn draw_grid(grid: &Grid, path_algo: Option<&AStar>) {
     for y in 0..grid.height {
         for x in 0..grid.width {
             let base_color = match grid.get(x, y) {
@@ -148,7 +149,7 @@ fn draw_grid(grid: &Grid, dijkstra: Option<&Dijkstra>) {
                 None => DARKGRAY,
             };
 
-            let color = if let Some(d) = dijkstra {
+            let color = if let Some(d) = path_algo {
                 match d.get_node_state(x, y) {
                     NodeState::Path => LIME,
                     NodeState::Visited => SKYBLUE,
