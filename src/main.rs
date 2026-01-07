@@ -1,9 +1,10 @@
 use macroquad::prelude::*;
 use path_finding::{
-    astar::{AStar, NodeState},
+    astar::AStar,
     cellular_automata::CellularAutomata,
-    //dijkstra::{Dijkstra, NodeState},
+    dijkstra::Dijkstra,
     grid::{Cell, Grid},
+    pathfinding::{NodeState, PathfindingAlgorithm},
 };
 
 const CELL_SIZE: f32 = 20.0;
@@ -11,6 +12,49 @@ const GRID_WIDTH: usize = 50;
 const GRID_HEIGHT: usize = 50;
 const STEP_DELAY: f32 = 0.01;
 const STATUS_BAR_HEIGHT: f32 = 30.0;
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum AlgorithmType {
+    Dijkstra,
+    AStar,
+}
+
+impl AlgorithmType {
+    pub fn all() -> &'static [Self] {
+        &[Self::Dijkstra, Self::AStar]
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Dijkstra => "Dijkstra",
+            Self::AStar => "A*",
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        let all = Self::all();
+        let current_idx = all.iter().position(|&a| a == *self).unwrap_or(0);
+        let next_idx = (current_idx + 1) % all.len();
+        all[next_idx]
+    }
+}
+
+impl Default for AlgorithmType {
+    fn default() -> Self {
+        Self::AStar
+    }
+}
+
+fn create_algorithm(
+    algorithm_type: AlgorithmType,
+    start: (usize, usize),
+    end: (usize, usize),
+) -> Box<dyn PathfindingAlgorithm> {
+    match algorithm_type {
+        AlgorithmType::Dijkstra => Box::new(Dijkstra::new(start, end)),
+        AlgorithmType::AStar => Box::new(AStar::new(start, end)),
+    }
+}
 
 enum AppState {
     Editing,
@@ -32,12 +76,19 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
     let mut app_state = AppState::Editing;
-    let mut path_algo: Option<AStar> = None;
+    let mut path_algo: Option<Box<dyn PathfindingAlgorithm>> = None;
+    let mut current_algorithm = AlgorithmType::default();
     let mut step_timer = 0.0;
     let mut cave_seed: u64 = 0;
     let mut first_run: bool = true;
 
     loop {
+        if is_key_pressed(KeyCode::Tab) {
+            if let AppState::Editing = app_state {
+                current_algorithm = current_algorithm.next();
+            }
+        }
+
         if is_mouse_button_pressed(MouseButton::Left) {
             if let Some((x, y)) = mouse_to_grid(&grid) {
                 let current = grid.get(x, y).unwrap_or(Cell::Empty);
@@ -74,7 +125,7 @@ async fn main() {
                 AppState::Editing => {
                     let (start, end) = find_start_end(&grid);
                     if let (Some(s), Some(e)) = (start, end) {
-                        path_algo = Some(AStar::new(s, e));
+                        path_algo = Some(create_algorithm(current_algorithm, s, e));
                         app_state = AppState::Running;
                         step_timer = 0.0;
                     }
@@ -116,13 +167,17 @@ async fn main() {
         }
 
         clear_background(BLACK);
-        draw_grid(&grid, path_algo.as_ref());
+        draw_grid(&grid, path_algo.as_deref());
         let status = match app_state {
-            AppState::Editing => &format!("Seed: {} | G: new cave | SPACE: pathfind", cave_seed),
+            AppState::Editing => &format!(
+                "Seed: {} | [{}] Tab:switch | G: new cave | SPACE: pathfind",
+                cave_seed,
+                current_algorithm.name()
+            ),
             AppState::Running => "Running... SPACE to pause",
             AppState::Finished => {
                 if let Some(ref d) = path_algo {
-                    if d.found_path {
+                    if d.found_path() {
                         "Path found! SPACE to reset"
                     } else {
                         "No path exists! SPACE to reset"
@@ -138,7 +193,7 @@ async fn main() {
     }
 }
 
-fn draw_grid(grid: &Grid, path_algo: Option<&AStar>) {
+fn draw_grid(grid: &Grid, path_algo: Option<&dyn PathfindingAlgorithm>) {
     for y in 0..grid.height {
         for x in 0..grid.width {
             let base_color = match grid.get(x, y) {

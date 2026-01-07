@@ -1,14 +1,7 @@
 use crate::grid::{Cell, Grid};
+use crate::pathfinding::{NodeState, PathfindingAlgorithm};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum NodeState {
-    Unvisited,
-    InQueue,
-    Visited,
-    Path,
-}
 
 #[derive(Eq, PartialEq)]
 struct Node {
@@ -50,32 +43,8 @@ pub struct AStar {
     pub found_path: bool,
 }
 
-impl AStar {
-    pub fn new(start: (usize, usize), end: (usize, usize)) -> Self {
-        let mut astar = AStar {
-            g_costs: HashMap::new(),
-            parents: HashMap::new(),
-            visited: HashSet::new(),
-            node_states: HashMap::new(),
-            queue: BinaryHeap::new(),
-            start,
-            end,
-            finished: false,
-            found_path: false,
-        };
-
-        astar.g_costs.insert(start, 0);
-        let h = heuristic_manhantan(start, end);
-        astar.queue.push(Node {
-            position: start,
-            g_cost: 0,
-            f_cost: h, // f = g + h = 0 + h
-        });
-
-        astar
-    }
-
-    pub fn step(&mut self, grid: &Grid) -> bool {
+impl PathfindingAlgorithm for AStar {
+    fn step(&mut self, grid: &Grid) -> bool {
         if self.finished {
             return false;
         }
@@ -136,20 +105,14 @@ impl AStar {
         true
     }
 
-    fn mark_path(&mut self) {
-        let mut current = self.end;
-        while current != self.start {
-            self.node_states.insert(current, NodeState::Path);
-            if let Some(&parent) = self.parents.get(&current) {
-                current = parent;
-            } else {
-                break;
-            }
-        }
-        self.node_states.insert(self.start, NodeState::Path);
+    fn get_node_state(&self, x: usize, y: usize) -> NodeState {
+        *self
+            .node_states
+            .get(&(x, y))
+            .unwrap_or(&NodeState::Unvisited)
     }
 
-    pub fn get_path(&self) -> Vec<(usize, usize)> {
+    fn get_path(&self) -> Vec<(usize, usize)> {
         if !self.found_path {
             return Vec::new();
         }
@@ -169,11 +132,55 @@ impl AStar {
         path
     }
 
-    pub fn get_node_state(&self, x: usize, y: usize) -> NodeState {
-        *self
-            .node_states
-            .get(&(x, y))
-            .unwrap_or(&NodeState::Unvisited)
+    fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    fn found_path(&self) -> bool {
+        self.found_path
+    }
+
+    fn name(&self) -> &'static str {
+        "A*"
+    }
+}
+
+impl AStar {
+    pub fn new(start: (usize, usize), end: (usize, usize)) -> Self {
+        let mut astar = AStar {
+            g_costs: HashMap::new(),
+            parents: HashMap::new(),
+            visited: HashSet::new(),
+            node_states: HashMap::new(),
+            queue: BinaryHeap::new(),
+            start,
+            end,
+            finished: false,
+            found_path: false,
+        };
+
+        astar.g_costs.insert(start, 0);
+        let h = heuristic_manhantan(start, end);
+        astar.queue.push(Node {
+            position: start,
+            g_cost: 0,
+            f_cost: h, // f = g + h = 0 + h
+        });
+
+        astar
+    }
+
+    fn mark_path(&mut self) {
+        let mut current = self.end;
+        while current != self.start {
+            self.node_states.insert(current, NodeState::Path);
+            if let Some(&parent) = self.parents.get(&current) {
+                current = parent;
+            } else {
+                break;
+            }
+        }
+        self.node_states.insert(self.start, NodeState::Path);
     }
 }
 

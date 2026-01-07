@@ -1,15 +1,7 @@
 use crate::grid::{Cell, Grid};
+use crate::pathfinding::{NodeState, PathfindingAlgorithm};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
-
-// Visual state of the node
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum NodeState {
-    Unvisited,
-    InQueue,
-    Visited,
-    Path,
-}
 
 #[derive(Eq, PartialEq)]
 struct Node {
@@ -41,32 +33,8 @@ pub struct Dijkstra {
     pub found_path: bool,
 }
 
-impl Dijkstra {
-    pub fn new(start: (usize, usize), end: (usize, usize)) -> Self {
-        let mut dijkstra = Dijkstra {
-            distances: HashMap::new(),
-            parents: HashMap::new(),
-            visited: HashSet::new(),
-            node_states: HashMap::new(),
-            queue: BinaryHeap::new(),
-            start,
-            end,
-            finished: false,
-            found_path: false,
-        };
-
-        dijkstra.distances.insert(start, 0);
-        dijkstra.queue.push(Node {
-            position: start,
-            distance: 0,
-        });
-        dijkstra.node_states.insert(start, NodeState::InQueue);
-        dijkstra
-    }
-
-    ///  Execute one step of the algorightm
-    /// Returns true if still running, false if finished
-    pub fn step(&mut self, grid: &Grid) -> bool {
+impl PathfindingAlgorithm for Dijkstra {
+    fn step(&mut self, grid: &Grid) -> bool {
         if self.finished {
             return false;
         }
@@ -124,20 +92,14 @@ impl Dijkstra {
         true
     }
 
-    fn mark_path(&mut self) {
-        let mut current = self.end;
-        while current != self.start {
-            self.node_states.insert(current, NodeState::Path);
-            if let Some(&parent) = self.parents.get(&current) {
-                current = parent;
-            } else {
-                break;
-            }
-        }
-        self.node_states.insert(self.start, NodeState::Path);
+    fn get_node_state(&self, x: usize, y: usize) -> NodeState {
+        *self
+            .node_states
+            .get(&(x, y))
+            .unwrap_or(&NodeState::Unvisited)
     }
 
-    pub fn get_path(&self) -> Vec<(usize, usize)> {
+    fn get_path(&self) -> Vec<(usize, usize)> {
         if !self.found_path {
             return Vec::new();
         }
@@ -157,10 +119,52 @@ impl Dijkstra {
         path
     }
 
-    pub fn get_node_state(&self, x: usize, y: usize) -> NodeState {
-        *self
-            .node_states
-            .get(&(x, y))
-            .unwrap_or(&NodeState::Unvisited)
+    fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    fn found_path(&self) -> bool {
+        self.found_path
+    }
+
+    fn name(&self) -> &'static str {
+        "Dijkstra"
+    }
+}
+
+impl Dijkstra {
+    pub fn new(start: (usize, usize), end: (usize, usize)) -> Self {
+        let mut dijkstra = Dijkstra {
+            distances: HashMap::new(),
+            parents: HashMap::new(),
+            visited: HashSet::new(),
+            node_states: HashMap::new(),
+            queue: BinaryHeap::new(),
+            start,
+            end,
+            finished: false,
+            found_path: false,
+        };
+
+        dijkstra.distances.insert(start, 0);
+        dijkstra.queue.push(Node {
+            position: start,
+            distance: 0,
+        });
+        dijkstra.node_states.insert(start, NodeState::InQueue);
+        dijkstra
+    }
+
+    fn mark_path(&mut self) {
+        let mut current = self.end;
+        while current != self.start {
+            self.node_states.insert(current, NodeState::Path);
+            if let Some(&parent) = self.parents.get(&current) {
+                current = parent;
+            } else {
+                break;
+            }
+        }
+        self.node_states.insert(self.start, NodeState::Path);
     }
 }
