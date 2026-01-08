@@ -11,7 +11,7 @@ const CELL_SIZE: f32 = 20.0;
 const GRID_WIDTH: usize = 50;
 const GRID_HEIGHT: usize = 50;
 const STEP_DELAY: f32 = 0.01;
-const STATUS_BAR_HEIGHT: f32 = 30.0;
+const STATUS_BAR_HEIGHT: f32 = 50.0;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum AlgorithmType {
@@ -168,11 +168,37 @@ async fn main() {
 
         clear_background(BLACK);
         draw_grid(&grid, path_algo.as_deref());
+
+        let selector_y = GRID_HEIGHT as f32 * CELL_SIZE + 22.0;
+        let mut x_offset = 10.0;
+
+        for algo_type in AlgorithmType::all() {
+            let is_selected = *algo_type == current_algorithm;
+            let name = algo_type.name();
+
+            if is_selected {
+                let text_size = measure_text(name, None, 16, 1.0);
+                let padding = 4.0;
+                draw_rectangle(
+                    x_offset - padding,
+                    selector_y - text_size.height - padding,
+                    text_size.width + padding * 2.0,
+                    text_size.height + padding * 2.0,
+                    DARKGRAY,
+                );
+            }
+
+            let color = if is_selected { WHITE } else { GRAY };
+            draw_text(name, x_offset, selector_y, 16.0, color);
+
+            let text_width = measure_text(name, None, 16, 1.0).width;
+            x_offset += text_width + 20.0;
+        }
+
         let status = match app_state {
             AppState::Editing => &format!(
-                "Seed: {} | [{}] Tab:switch | G: new cave | SPACE: pathfind",
-                cave_seed,
-                current_algorithm.name()
+                "Seed: {} | Tab: switch algorithm | G: new cave | SPACE: pathfind",
+                cave_seed
             ),
             AppState::Running => "Running... SPACE to pause",
             AppState::Finished => {
@@ -187,8 +213,8 @@ async fn main() {
                 }
             }
         };
-        let text_y = GRID_HEIGHT as f32 * CELL_SIZE + (STATUS_BAR_HEIGHT + 16.0) / 2.0;
-        draw_text(status, 10.0, text_y, 20.0, WHITE);
+        let status_y = GRID_HEIGHT as f32 * CELL_SIZE + 45.0;
+        draw_text(status, 10.0, status_y, 16.0, WHITE);
         next_frame().await
     }
 }
