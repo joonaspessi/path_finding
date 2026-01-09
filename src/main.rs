@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 use path_finding::{
     astar::AStar,
+    bfs::Bfs,
     cellular_automata::CellularAutomata,
     dijkstra::Dijkstra,
     grid::{Cell, Grid},
@@ -17,17 +18,19 @@ const STATUS_BAR_HEIGHT: f32 = 50.0;
 pub enum AlgorithmType {
     Dijkstra,
     AStar,
+    Bfs,
 }
 
 impl AlgorithmType {
     pub fn all() -> &'static [Self] {
-        &[Self::Dijkstra, Self::AStar]
+        &[Self::Dijkstra, Self::AStar, Self::Bfs]
     }
 
     pub fn name(&self) -> &'static str {
         match self {
             Self::Dijkstra => "Dijkstra",
             Self::AStar => "A*",
+            Self::Bfs => "BFS",
         }
     }
 
@@ -53,6 +56,7 @@ fn create_algorithm(
     match algorithm_type {
         AlgorithmType::Dijkstra => Box::new(Dijkstra::new(start, end)),
         AlgorithmType::AStar => Box::new(AStar::new(start, end)),
+        AlgorithmType::Bfs => Box::new(Bfs::new(start, end)),
     }
 }
 
