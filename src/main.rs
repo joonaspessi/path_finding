@@ -3,6 +3,7 @@ use path_finding::{
     astar::AStar,
     bfs::Bfs,
     cellular_automata::CellularAutomata,
+    dfs::Dfs,
     dijkstra::Dijkstra,
     grid::{Cell, Grid},
     pathfinding::{NodeState, PathfindingAlgorithm},
@@ -19,11 +20,12 @@ pub enum AlgorithmType {
     Dijkstra,
     AStar,
     Bfs,
+    Dfs,
 }
 
 impl AlgorithmType {
     pub fn all() -> &'static [Self] {
-        &[Self::Dijkstra, Self::AStar, Self::Bfs]
+        &[Self::Dijkstra, Self::AStar, Self::Bfs, Self::Dfs]
     }
 
     pub fn name(&self) -> &'static str {
@@ -31,6 +33,7 @@ impl AlgorithmType {
             Self::Dijkstra => "Dijkstra",
             Self::AStar => "A*",
             Self::Bfs => "BFS",
+            Self::Dfs => "DFS",
         }
     }
 
@@ -57,6 +60,7 @@ fn create_algorithm(
         AlgorithmType::Dijkstra => Box::new(Dijkstra::new(start, end)),
         AlgorithmType::AStar => Box::new(AStar::new(start, end)),
         AlgorithmType::Bfs => Box::new(Bfs::new(start, end)),
+        AlgorithmType::Dfs => Box::new(Dfs::new(start, end)),
     }
 }
 
